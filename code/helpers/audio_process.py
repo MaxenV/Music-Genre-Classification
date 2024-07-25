@@ -1,6 +1,8 @@
 import os
 from dotenv import load_dotenv
 from project import get_absolute_path
+import librosa
+import numpy as np
 
 
 class AudioProcess:
@@ -27,3 +29,6 @@ class AudioProcess:
                     else:
                         paths[name] = [os.path.join(root, file)]
         return paths
+
+    def get_sample(self, audio_path) -> np.ndarray:
+        return librosa.load(audio_path, sr=self.sampling_rate)[0]
