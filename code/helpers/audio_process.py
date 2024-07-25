@@ -102,3 +102,6 @@ class AudioProcess:
             if sample_count[actual_class] <= 10:
                 test_data["data"].append(data)
         return test_data
+
+    def import_melspectrograms(self, spectrograms):
+        self.melspectrograms = spectrograms
