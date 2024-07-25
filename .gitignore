@@ -1,4 +1,4 @@
 data/audio
 data/models
-data/preprocessed
+data/processed
 __pycache__
