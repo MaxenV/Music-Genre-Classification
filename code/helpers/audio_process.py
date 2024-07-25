@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from project import get_absolute_path
 import librosa
 import numpy as np
+import IPython.display as ipd
 
 
 class AudioProcess:
@@ -32,3 +33,12 @@ class AudioProcess:
 
     def get_sample(self, audio_path) -> np.ndarray:
         return librosa.load(audio_path, sr=self.sampling_rate)[0]
+
+    def get_audio(self, sample) -> ipd.Audio:
+        return ipd.Audio(sample, rate=self.sampling_rate)
+
+    def play_audio(self, input):
+        sample = input
+        if isinstance(input, str):
+            sample = self.get_sample(input)
+        ipd.display(self.get_audio(sample))
