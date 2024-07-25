@@ -6,6 +6,8 @@ Created to learn how to learn models using various techniques and preprocessing 
 
 
 # How to start
+Create new environment: conda env create -f environment.yml
+
 ## Create folder tree
 - data
     - Audio
@@ -13,6 +15,7 @@ Created to learn how to learn models using various techniques and preprocessing 
     - Processed
 
 Move data from kaggle folder "genres_original" into Audio folder
+Remove jazz.00054.wav because is damaged.
 
 ## Create preprocessed data
 Run preproces.ipynb notebook
