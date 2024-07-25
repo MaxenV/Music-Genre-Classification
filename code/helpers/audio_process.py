@@ -17,7 +17,7 @@ class AudioProcess:
         self.sampling_rate = sampling_rate or int(os.getenv("SAMPLING_RATE"))
 
         self.paths = self.get_audio_paths(self.audio_folder)
-        self.melspectrograms = {"class_names": [], "data": []}
+        self.melspectrograms = None
 
     def get_audio_paths(self, audio_folder):
         paths = {}
@@ -42,3 +42,32 @@ class AudioProcess:
         if isinstance(input, str):
             sample = self.get_sample(input)
         ipd.display(self.get_audio(sample))
+
+    def set_melspectrograms(self):
+        melspectrograms = {
+            "class_names": [],
+            "data": [],
+        }
+
+        for class_name, paths in self.paths.items():
+            melspectrograms["class_names"].append(class_name)
+            for path in paths:
+                sample = self.get_sample(path)
+                melspectrogram = librosa.feature.melspectrogram(
+                    y=sample, sr=self.sampling_rate
+                )
+                melspectrogram = librosa.power_to_db(melspectrogram, ref=np.max)
+                melspectrograms["data"].append(
+                    {
+                        "label": melspectrograms["class_names"].index(class_name),
+                        "spec": melspectrogram,
+                    }
+                )
+
+        self.melspectrograms = melspectrograms
+        return melspectrograms
+
+    def get_melspectrograms(self):
+        if not self.melspectrograms:
+            self.set_melspectrograms()
+        return self.melspectrograms
