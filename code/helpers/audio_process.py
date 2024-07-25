@@ -4,6 +4,7 @@ from project import get_absolute_path
 import librosa
 import numpy as np
 import IPython.display as ipd
+from json import dump
 
 
 class AudioProcess:
@@ -105,3 +106,17 @@ class AudioProcess:
 
     def import_melspectrograms(self, spectrograms):
         self.melspectrograms = spectrograms
+
+    def save_melspectrograms(self, type=["all", "balanced", "test"]):
+        if "all" in type:
+            path = os.path.join(self.processed_folder, "all_spec.json")
+            with open(path, "w") as file:
+                dump(self.melspectrograms, file)
+        if "balanced" in type:
+            path = os.path.join(self.processed_folder, "balanced_spec.json")
+            with open(path, "w") as file:
+                dump(self.get_balanced_data(), file)
+        if "test" in type:
+            path = os.path.join(self.processed_folder, "test_spec.json")
+            with open(path, "w") as file:
+                dump(self.get_first_10_melspectrograms(), file)
