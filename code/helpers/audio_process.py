@@ -87,3 +87,18 @@ class AudioProcess:
             if sample_count[actual_class] <= min_sample:
                 balanced_data["data"].append(data)
         return balanced_data
+
+    def get_first_10_melspectrograms(self):
+        sample_count = {key: 0 for key in self.paths}
+
+        test_data = {
+            "class_names": self.melspectrograms["class_names"],
+            "data": [],
+        }
+
+        for data in self.melspectrograms["data"]:
+            actual_class = self.melspectrograms["class_names"][data["label"]]
+            sample_count[actual_class] += 1
+            if sample_count[actual_class] <= 10:
+                test_data["data"].append(data)
+        return test_data
