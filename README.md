@@ -10,9 +10,9 @@ Create new environment: conda env create -f environment.yml
 
 ## Create folder tree
 - data
-    - Audio
-    - Models
-    - Processed
+    - audio
+    - models
+    - processed
 
 Move data from kaggle folder "genres_original" into Audio folder
 Remove jazz.00054.wav because is damaged.
