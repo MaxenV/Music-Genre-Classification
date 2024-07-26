@@ -53,6 +53,33 @@ class AudioProcess:
                 if key in class_name == None or class_name
             }
 
+    def get_melspectrograms(self, spec_amount=None):
+        if not self.melspectrograms:
+            self.set_melspectrograms()
+
+        if isinstance(spec_amount, dict):
+            print(spec_amount)
+            result = {"class_names": spec_amount.keys(), "data": []}
+            print(result)
+            result_counter = {
+                i: spec_amount[key]
+                for i, key in enumerate(self.melspectrograms["class_names"])
+                if key in spec_amount.keys()
+            }
+            print(result_counter)
+            for spec in self.melspectrograms["data"]:
+                if (
+                    spec["label"] in result_counter
+                    and result_counter[spec["label"]] > 0
+                ):
+                    result["data"].append(
+                        {"label": spec["label"], "spec": spec["spec"]}
+                    )
+                    result_counter[spec["label"]] -= 1
+            return result
+        else:
+            return self.melspectrograms.copy()
+
     def standardize_sample_length(self, sample, sample_length):
         if len(sample) > sample_length:
             sample = sample[:sample_length]
@@ -102,11 +129,6 @@ class AudioProcess:
 
         self.melspectrograms = melspectrograms
         return melspectrograms
-
-    def get_melspectrograms(self):
-        if not self.melspectrograms:
-            self.set_melspectrograms()
-        return self.melspectrograms
 
     def get_balanced_data(self):
         sample_count = {key: 0 for key in self.paths}
