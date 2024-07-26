@@ -8,7 +8,13 @@ from json import dump
 
 
 class AudioProcess:
-    def __init__(self, audio_folder=None, processed_folder=None, sampling_rate=None):
+    def __init__(
+        self,
+        audio_folder=None,
+        processed_folder=None,
+        sampling_rate=None,
+        sample_length=None,
+    ):
         load_dotenv()
 
         self.audio_folder = get_absolute_path(audio_folder or os.getenv("AUDIO_FOLDER"))
@@ -16,6 +22,7 @@ class AudioProcess:
             processed_folder or os.getenv("PROCESSED_FOLDER")
         )
         self.sampling_rate = sampling_rate or int(os.getenv("SAMPLING_RATE"))
+        self.sample_length = sample_length or int(os.getenv("SAMPLE_LENGTH"))
 
         self.paths = self.get_audio_paths(self.audio_folder)
         self.melspectrograms = None
@@ -32,8 +39,22 @@ class AudioProcess:
                         paths[name] = [os.path.join(root, file)]
         return paths
 
+    def standardize_sample_length(self, sample, sample_length):
+        if len(sample) > sample_length:
+            sample = sample[:sample_length]
+        else:
+            sample = np.pad(
+                sample,
+                (0, sample_length - len(sample)),
+                "constant",
+                constant_values=(0),
+            )
+        return sample
+
     def get_sample(self, audio_path) -> np.ndarray:
-        return librosa.load(audio_path, sr=self.sampling_rate)[0]
+        sample = librosa.load(audio_path, sr=self.sampling_rate)[0]
+        sample = self.standardize_sample_length(sample, self.sample_length)
+        return sample
 
     def get_audio(self, sample) -> ipd.Audio:
         return ipd.Audio(sample, rate=self.sampling_rate)
@@ -61,7 +82,7 @@ class AudioProcess:
                 melspectrograms["data"].append(
                     {
                         "label": melspectrograms["class_names"].index(class_name),
-                        "spec": melspectrogram,
+                        "spec": melspectrogram.tolist(),
                     }
                 )
 
