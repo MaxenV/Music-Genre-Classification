@@ -39,6 +39,20 @@ class AudioProcess:
                         paths[name] = [os.path.join(root, file)]
         return paths
 
+    def get_paths(self, class_name=None, indexes=None):
+        if indexes == None:
+            return {
+                key: self.paths[key]
+                for key in self.paths.keys()
+                if class_name == None or key in class_name
+            }
+        else:
+            return {
+                key: [self.paths[key][i] for i in indexes]
+                for key in self.paths.keys()
+                if key in class_name == None or class_name
+            }
+
     def standardize_sample_length(self, sample, sample_length):
         if len(sample) > sample_length:
             sample = sample[:sample_length]
