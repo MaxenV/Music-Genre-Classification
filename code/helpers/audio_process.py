@@ -1,84 +1,63 @@
 import os
 from dotenv import load_dotenv
-from project import get_absolute_path
 import librosa
 import numpy as np
 import IPython.display as ipd
 from json import dump
+from project import get_absolute_path
 
 
 class AudioProcess:
     def __init__(
         self,
-        audio_folder=None,
-        processed_folder=None,
+        audio_path,
+        class_name,
         sampling_rate=None,
         sample_length=None,
+        processed_folder=None,
     ):
+        """Initialize the AudioProcess class
+
+        Args:
+            audio_path (str): Path of the audio file.
+            class_name (str): Class name of the audio file.
+            sampling_rate (int, optional): Sampling rate for audio processing. Defaults to None.
+            sample_length (int, optional): Length of the audio sample. Defaults to None.
+        """
         load_dotenv()
 
-        self.audio_folder = get_absolute_path(audio_folder or os.getenv("AUDIO_FOLDER"))
-        self.processed_folder = get_absolute_path(
-            processed_folder or os.getenv("PROCESSED_FOLDER")
-        )
         self.sampling_rate = sampling_rate or int(os.getenv("SAMPLING_RATE"))
         self.sample_length = sample_length or int(os.getenv("SAMPLE_LENGTH"))
+        self.processed_folder = processed_folder or get_absolute_path(
+            os.getenv("PROCESSED_FOLDER")
+        )
 
-        self.paths = self.get_audio_paths(self.audio_folder)
-        self.melspectrograms = None
+        self.audio_path = audio_path
+        self.audio_name = os.path.basename(audio_path)
+        self.class_name = class_name
 
-    def get_audio_paths(self, audio_folder):
-        paths = {}
-        for root, _, files in os.walk(audio_folder):
-            if root != audio_folder:
-                name = os.path.basename(root)
-                for file in files:
-                    if name in paths.keys():
-                        paths[name].append(os.path.join(root, file))
-                    else:
-                        paths[name] = [os.path.join(root, file)]
-        return paths
+        self.data = None
+        self.sample = None
 
-    def get_paths(self, class_name=None, indexes=None):
-        if indexes == None:
-            return {
-                key: self.paths[key]
-                for key in self.paths.keys()
-                if class_name == None or key in class_name
-            }
-        else:
-            return {
-                key: [self.paths[key][i] for i in indexes]
-                for key in self.paths.keys()
-                if key in class_name == None or class_name
-            }
+    def create_data(self, types=["melSpectrogram"]):
+        self.data = {}
+        self.sample = self.get_sample(self.audio_path)
 
-    def get_melspectrograms(self, spec_amount=None):
-        if not self.melspectrograms:
-            self.set_melspectrograms()
+        for type in types:
+            if type == "melSpectrogram":
+                self.data["melSpectrogram"] = self.get_melspectrogram()
+            else:
+                print(f"{type} - This type is ont defined")
 
-        if isinstance(spec_amount, dict):
-            print(spec_amount)
-            result = {"class_names": spec_amount.keys(), "data": []}
-            print(result)
-            result_counter = {
-                i: spec_amount[key]
-                for i, key in enumerate(self.melspectrograms["class_names"])
-                if key in spec_amount.keys()
-            }
-            print(result_counter)
-            for spec in self.melspectrograms["data"]:
-                if (
-                    spec["label"] in result_counter
-                    and result_counter[spec["label"]] > 0
-                ):
-                    result["data"].append(
-                        {"label": spec["label"], "spec": spec["spec"]}
-                    )
-                    result_counter[spec["label"]] -= 1
-            return result
-        else:
-            return self.melspectrograms.copy()
+    def get_data(self, types=None):
+        if not self.data:
+            self.create_data()
+
+        if types == None:
+            return self.data.copy()
+
+        result = {key: self.data[key] for key in types if key in self.data.keys()}
+        return result
 
     def standardize_sample_length(self, sample, sample_length):
         if len(sample) > sample_length:
@@ -93,12 +72,14 @@ class AudioProcess:
         return sample
 
     def get_sample(self, audio_path) -> np.ndarray:
-        sample = librosa.load(audio_path, sr=self.sampling_rate)[0]
+        sample, _ = librosa.load(audio_path, sr=self.sampling_rate)
         sample = self.standardize_sample_length(sample, self.sample_length)
         return sample
 
-    def get_audio(self, sample) -> ipd.Audio:
-        return ipd.Audio(sample, rate=self.sampling_rate)
+    def get_audio(self, sample, sampling_rate=None) -> ipd.Audio:
+        if not sampling_rate:
+            sampling_rate = self.sampling_rate
+        return ipd.Audio(sample, rate=sampling_rate)
 
     def play_audio(self, input):
         sample = input
@@ -106,74 +87,39 @@ class AudioProcess:
             sample = self.get_sample(input)
         ipd.display(self.get_audio(sample))
 
-    def set_melspectrograms(self):
-        melspectrograms = {
-            "class_names": [],
-            "data": [],
-        }
+    def get_melspectrogram(self, sample=None, sampling_rate=None):
+        if not sample:
+            sample = self.sample
+        if not sampling_rate:
+            sampling_rate = self.sampling_rate
 
-        for class_name, paths in self.paths.items():
-            melspectrograms["class_names"].append(class_name)
-            for path in paths:
-                sample = self.get_sample(path)
-                melspectrogram = librosa.feature.melspectrogram(
-                    y=sample, sr=self.sampling_rate
-                )
-                melspectrogram = librosa.power_to_db(melspectrogram, ref=np.max)
-                melspectrograms["data"].append(
-                    {
-                        "label": melspectrograms["class_names"].index(class_name),
-                        "spec": melspectrogram.tolist(),
-                    }
-                )
+        melspectrogram = librosa.feature.melspectrogram(y=sample, sr=sampling_rate)
+        melspectrogram = librosa.power_to_db(melspectrogram, ref=np.max)
+        return melspectrogram
 
-        self.melspectrograms = melspectrograms
-        return melspectrograms
+    def save_data(self, types=None, processed_folder=None):
+        if not self.data:
+            print("No data to save")
 
-    def get_balanced_data(self):
-        sample_count = {key: 0 for key in self.paths}
-        min_sample = min({key: len(self.paths[key]) for key in self.paths}.values())
+        if not types:
+            types = self.data.keys()
+        if not processed_folder:
+            processed_folder = self.processed_folder
 
-        balanced_data = {
-            "class_names": self.melspectrograms["class_names"],
-            "data": [],
-        }
+        joined_types = str.join("_", types)
 
-        for data in self.melspectrograms["data"]:
-            actual_class = self.melspectrograms["class_names"][data["label"]]
-            sample_count[actual_class] += 1
-            if sample_count[actual_class] <= min_sample:
-                balanced_data["data"].append(data)
-        return balanced_data
+        class_folder_path = os.path.join(processed_folder, self.class_name)
+        audio_folder_path = os.path.join(
+            class_folder_path, self.audio_name.replace(".", "_")
+        )
+        file_path = os.path.join(
+            audio_folder_path,
+            f"{joined_types}.json",
+        )
 
-    def get_first_10_melspectrograms(self):
-        sample_count = {key: 0 for key in self.paths}
+        os.makedirs(class_folder_path, exist_ok=True)
+        os.makedirs(audio_folder_path, exist_ok=True)
 
-        test_data = {
-            "class_names": self.melspectrograms["class_names"],
-            "data": [],
-        }
-
-        for data in self.melspectrograms["data"]:
-            actual_class = self.melspectrograms["class_names"][data["label"]]
-            sample_count[actual_class] += 1
-            if sample_count[actual_class] <= 10:
-                test_data["data"].append(data)
-        return test_data
-
-    def import_melspectrograms(self, spectrograms):
-        self.melspectrograms = spectrograms
-
-    def save_melspectrograms(self, type=["all", "balanced", "test"]):
-        if "all" in type:
-            path = os.path.join(self.processed_folder, "all_spec.json")
-            with open(path, "w") as file:
-                dump(self.melspectrograms, file)
-        if "balanced" in type:
-            path = os.path.join(self.processed_folder, "balanced_spec.json")
-            with open(path, "w") as file:
-                dump(self.get_balanced_data(), file)
-        if "test" in type:
-            path = os.path.join(self.processed_folder, "test_spec.json")
-            with open(path, "w") as file:
-                dump(self.get_first_10_melspectrograms(), file)
+        with open(file_path, "w") as file:
+            to_json = {key: self.data[key].tolist() for key in types}
+            dump(to_json, file)
