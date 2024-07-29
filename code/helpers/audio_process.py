@@ -39,15 +39,17 @@ class AudioProcess:
         self.data = None
         self.sample = None
 
-    def create_data(self, types=["melSpectrogram"]):
+    def create_data(self, types=["melSpectrogram", "mfcc"]):
         self.data = {}
         self.sample = self.get_sample(self.audio_path)
 
         for type in types:
             if type == "melSpectrogram":
                 self.data["melSpectrogram"] = self.get_melspectrogram()
+            elif type == "mfcc":
+                self.data["mfcc"] = self.get_mfcc()
             else:
-                print(f"{type} - This type is ont defined")
+                print(f"{type} - This type is not defined")
 
     def get_data(self, types=None):
         if not self.data:
@@ -96,6 +98,15 @@ class AudioProcess:
         melspectrogram = librosa.feature.melspectrogram(y=sample, sr=sampling_rate)
         melspectrogram = librosa.power_to_db(melspectrogram, ref=np.max)
         return melspectrogram
+
+    def get_mfcc(self, sample=None, sampling_rate=None):
+        if not sample:
+            sample = self.sample
+        if not sampling_rate:
+            sampling_rate = self.sampling_rate
+
+        mfcc = librosa.feature.mfcc(y=sample, sr=sampling_rate, n_mfcc=13)
+        return mfcc
 
     def save_data(self, types=None, processed_folder=None):
         if not self.data:
