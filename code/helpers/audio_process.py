@@ -39,9 +39,16 @@ class AudioProcess:
         self.data = None
         self.sample = None
 
+    def set_sample(self, sample=None):
+        if sample:
+            self.sample = sample
+        else:
+            self.sample = self.get_sample(self.audio_path)
+
     def create_data(self, types=["melSpectrogram", "mfcc"]):
         self.data = {}
-        self.sample = self.get_sample(self.audio_path)
+        if self.sample == None:
+            self.sample = self.get_sample(self.audio_path)
 
         for type in types:
             if type == "melSpectrogram":
@@ -108,7 +115,7 @@ class AudioProcess:
         mfcc = librosa.feature.mfcc(y=sample, sr=sampling_rate, n_mfcc=13)
         return mfcc
 
-    def save_data(self, types=None, processed_folder=None):
+    def save_data(self, types=None, processed_folder=None, audio_folder_name=None):
         if not self.data:
             print("No data to save")
 
@@ -120,9 +127,12 @@ class AudioProcess:
         joined_types = str.join("_", types)
 
         class_folder_path = os.path.join(processed_folder, self.class_name)
-        audio_folder_path = os.path.join(
-            class_folder_path, self.audio_name.replace(".", "_")
-        )
+        if audio_folder_name:
+            audio_folder_path = os.path.join(class_folder_path, audio_folder_name)
+        else:
+            audio_folder_path = os.path.join(
+                class_folder_path, self.audio_name.replace(".", "_")
+            )
         file_path = os.path.join(
             audio_folder_path,
             f"{joined_types}.json",
