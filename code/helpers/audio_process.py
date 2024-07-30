@@ -46,18 +46,67 @@ class AudioProcess:
         else:
             self.sample = self.get_sample(self.audio_path)
 
-    def create_data(self, types=["melSpectrogram", "mfcc"]):
+    def create_data(self, types=["melSpectrogram", "mfcc"], augmentations=None):
         self.data = {}
         if self.sample == None:
             self.sample = self.get_sample(self.audio_path)
 
+        if augmentations:
+            for augmentation in augmentations:
+                if augmentation == "original":
+                    self.data["original"] = self.get_visualization(types=types)
+                elif augmentation == "noise":
+                    self.data["noise"] = self.get_visualization(
+                        types=types,
+                        sample=self.add_noise(
+                            noise_factor=augmentations[augmentation]["noise_factor"]
+                        ),
+                    )
+                elif augmentation == "echo":
+                    self.data["echo"] = self.get_visualization(
+                        types=types,
+                        sample=self.add_echo(
+                            delay=augmentations[augmentation]["delay"],
+                            decay=augmentations[augmentation]["decay"],
+                        ),
+                    )
+                elif augmentation == "frequency_filter":
+                    self.data["frequency_filter"] = self.get_visualization(
+                        types=types,
+                        sample=self.apply_frequency_filter(
+                            lowcut=augmentations[augmentation]["lowcut"],
+                            highcut=augmentations[augmentation]["highcut"],
+                        ),
+                    )
+                elif augmentation == "delay":
+                    self.data["delay"] = self.get_visualization(
+                        types=types,
+                        sample=self.add_delay(
+                            delay=augmentations[augmentation]["delay"]
+                        ),
+                    )
+                elif augmentation == "reverb":
+                    self.data["reverb"] = self.get_visualization(
+                        types=types,
+                        sample=self.add_reverb(
+                            reverb_factor=augmentations[augmentation]["reverb_factor"]
+                        ),
+                    )
+                else:
+                    print(f"{augmentation} - This augmentation is not defined")
+        else:
+            self.data["original"] = self.get_visualization(types=types)
+
+    def get_visualization(self, types=["melSpectrogram", "mfcc"], sample=None):
+        visualization = {}
         for type in types:
             if type == "melSpectrogram":
-                self.data["melSpectrogram"] = self.get_melspectrogram()
+                visualization["melSpectrogram"] = self.get_melspectrogram(sample=sample)
             elif type == "mfcc":
-                self.data["mfcc"] = self.get_mfcc()
+                visualization["mfcc"] = self.get_mfcc(sample=sample)
             else:
                 print(f"{type} - This type is not defined")
+        return visualization
 
     def get_data(self, types=None):
         if not self.data:
@@ -116,7 +165,7 @@ class AudioProcess:
         mfcc = librosa.feature.mfcc(y=sample, sr=sampling_rate, n_mfcc=13)
         return mfcc
 
-    def save_data(self, types=None, processed_folder=None, audio_folder_name=None):
+    def save_data(self, types=None, processed_folder=None):
         if not self.data:
             print("No data to save")
 
@@ -128,12 +177,9 @@ class AudioProcess:
         joined_types = str.join("_", types)
 
         class_folder_path = os.path.join(processed_folder, self.class_name)
-        if audio_folder_name:
-            audio_folder_path = os.path.join(class_folder_path, audio_folder_name)
-        else:
-            audio_folder_path = os.path.join(
-                class_folder_path, self.audio_name.replace(".", "_")
-            )
+        audio_folder_path = os.path.join(
+            class_folder_path, self.audio_name.replace(".", "_")
+        )
         file_path = os.path.join(
             audio_folder_path,
             f"{joined_types}.json",
