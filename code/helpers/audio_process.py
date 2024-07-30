@@ -156,7 +156,7 @@ class AudioProcess:
                 }
                 dump(to_json, file)
 
-    def add_orginal_data(self, types=None):
+    def add_original_data(self, types=None):
         if self.sample is None:
             self.sample = self.get_sample(self.audio_path)
         self.data["original"] = self.get_visualization(types=types)
