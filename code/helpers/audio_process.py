@@ -37,7 +37,7 @@ class AudioProcess:
         self.audio_name = os.path.basename(audio_path)
         self.class_name = class_name
 
-        self.data = None
+        self.data = {}
         self.sample = None
 
     def set_sample(self, sample=None):
@@ -46,58 +46,11 @@ class AudioProcess:
         else:
             self.sample = self.get_sample(self.audio_path)
 
-    def create_data(self, types=["melSpectrogram", "mfcc"], augmentations=None):
-        self.data = {}
-        if self.sample == None:
-            self.sample = self.get_sample(self.audio_path)
+    def get_visualization(self, types=None, sample=None):
 
-        if augmentations:
-            for augmentation in augmentations:
-                if augmentation == "original":
-                    self.data["original"] = self.get_visualization(types=types)
-                elif augmentation == "noise":
-                    self.data["noise"] = self.get_visualization(
-                        types=types,
-                        sample=self.add_noise(
-                            noise_factor=augmentations[augmentation]["noise_factor"]
-                        ),
-                    )
-                elif augmentation == "echo":
-                    self.data["echo"] = self.get_visualization(
-                        types=types,
-                        sample=self.add_echo(
-                            delay=augmentations[augmentation]["delay"],
-                            decay=augmentations[augmentation]["decay"],
-                        ),
-                    )
-                elif augmentation == "frequency_filter":
-                    self.data["frequency_filter"] = self.get_visualization(
-                        types=types,
-                        sample=self.apply_frequency_filter(
-                            lowcut=augmentations[augmentation]["lowcut"],
-                            highcut=augmentations[augmentation]["highcut"],
-                        ),
-                    )
-                elif augmentation == "delay":
-                    self.data["delay"] = self.get_visualization(
-                        types=types,
-                        sample=self.add_delay(
-                            delay=augmentations[augmentation]["delay"]
-                        ),
-                    )
-                elif augmentation == "reverb":
-                    self.data["reverb"] = self.get_visualization(
-                        types=types,
-                        sample=self.add_reverb(
-                            reverb_factor=augmentations[augmentation]["reverb_factor"]
-                        ),
-                    )
-                else:
-                    print(f"{augmentation} - This augmentation is not defined")
-        else:
-            self.data["original"] = self.get_visualization(types=types)
+        if types == None:
+            types = ["melSpectrogram", "mfcc"]
 
-    def get_visualization(self, types=["melSpectrogram", "mfcc"], sample=None):
         visualization = {}
         for type in types:
             if type == "melSpectrogram":
@@ -108,14 +61,25 @@ class AudioProcess:
                 print(f"{type} - This type is not defined")
         return visualization
 
-    def get_data(self, types=None):
+    def get_data(self, augmentations=None, types=None):
         if not self.data:
             self.create_data()
 
-        if types == None:
-            return self.data.copy()
+        if augmentations == None:
+            augmentations = self.data.keys()
 
-        result = {key: self.data[key] for key in types if key in self.data.keys()}
+        if types == None:
+            result = {
+                aug: self.data[aug] for aug in augmentations if aug in self.data.keys()
+            }
+        else:
+            result = {
+                aug: {
+                    key: self.data[key] for key in types if key in self.data[aug].keys()
+                }
+                for aug in augmentations
+                if aug in self.data.keys()
+            }
         return result
 
     def standardize_sample_length(self, sample, sample_length):
@@ -147,7 +111,7 @@ class AudioProcess:
         ipd.display(self.get_audio(sample))
 
     def get_melspectrogram(self, sample=None, sampling_rate=None):
-        if not sample:
+        if sample is None:
             sample = self.sample
         if not sampling_rate:
             sampling_rate = self.sampling_rate
@@ -157,7 +121,7 @@ class AudioProcess:
         return melspectrogram
 
     def get_mfcc(self, sample=None, sampling_rate=None):
-        if not sample:
+        if sample is None:
             sample = self.sample
         if not sampling_rate:
             sampling_rate = self.sampling_rate
@@ -192,42 +156,69 @@ class AudioProcess:
             to_json = {key: self.data[key].tolist() for key in types}
             dump(to_json, file)
 
-    def add_noise(self, noise_factor=0.005):
+    def add_orginal_data(self, types=None):
+        if self.sample is None:
+            self.sample = self.get_sample(self.audio_path)
+        self.data["original"] = self.get_visualization(types=types)
+
+    def add_noise_data(self, noise_factor=0.005, types=None):
+        if self.sample is None:
+            self.sample = self.get_sample(self.audio_path)
+
         noise = np.random.randn(len(self.sample))
         augmented_sample = self.sample + noise_factor * noise
-        return augmented_sample
+        self.data["noise"] = self.get_visualization(
+            sample=augmented_sample, types=types
+        )
 
-    def add_echo(self, delay=0.2, decay=0.5):
+    def add_echo(self, delay=0.2, decay=0.5, types=None):
+        if self.sample is None:
+            self.sample = self.get_sample(self.audio_path)
+
         echo_sample = np.zeros_like(self.sample)
         delay_samples = int(delay * self.sampling_rate)
         for i in range(delay_samples, len(self.sample)):
             echo_sample[i] = self.sample[i] + decay * self.sample[i - delay_samples]
-        return echo_sample
+        self.data["echo"] = self.get_visualization(sample=echo_sample, types=types)
 
-    def apply_frequency_filter(self, lowcut=500.0, highcut=15000.0):
+    def add_frequency_filter_data(self, lowcut=500.0, highcut=15000.0, types=None):
+        if self.sample is None:
+            self.sample = self.get_sample(self.audio_path)
+
         nyquist = 0.5 * self.sampling_rate
         low = lowcut / nyquist
         high = highcut / nyquist
 
-        # Ensure the frequencies are within the valid range
-        if not (0 < low < 1) or not (0 < high < 1):
-            raise ValueError("Digital filter critical frequencies must be 0 < Wn < 1")
+        if not (0 < low < 1):
+            lowcut = nyquist * 0.1
+            low = lowcut / nyquist
+        if not (0 < high < 1):
+            highcut = nyquist * 0.9
+            high = highcut / nyquist
 
         b, a = butter(1, [low, high], btype="band")
         filtered_sample = lfilter(b, a, self.sample)
-        return filtered_sample
+        self.data["frequency_filter"] = self.get_visualization(
+            sample=filtered_sample, types=types
+        )
 
-    def add_delay(self, delay=0.2):
+    def add_delay_data(self, delay=0.2, types=None):
+        if self.sample is None:
+            self.sample = self.get_sample(self.audio_path)
+
         delay_samples = int(delay * self.sampling_rate)
         delayed_sample = np.zeros_like(self.sample)
         for i in range(delay_samples, len(self.sample)):
             delayed_sample[i] = self.sample[i - delay_samples]
-        return delayed_sample
+        self.data["delay"] = self.get_visualization(sample=delayed_sample, types=types)
 
-    def add_reverb(self, reverb_factor=0.5):
+    def add_reverb_data(self, reverb_factor=0.5, types=None):
+        if self.sample is None:
+            self.sample = self.get_sample(self.audio_path)
+
         reverb_sample = np.convolve(
             self.sample,
             np.ones(int(self.sampling_rate * reverb_factor)) / self.sampling_rate,
             mode="full",
         )
-        return reverb_sample[: len(self.sample)]
+        self.data["reverb"] = self.get_visualization(sample=reverb_sample, types=types)
