@@ -5,6 +5,7 @@ import numpy as np
 import IPython.display as ipd
 from json import dump
 from project import get_absolute_path
+from scipy.signal import butter, lfilter
 
 
 class AudioProcess:
@@ -144,3 +145,43 @@ class AudioProcess:
         with open(file_path, "w") as file:
             to_json = {key: self.data[key].tolist() for key in types}
             dump(to_json, file)
+
+    def add_noise(self, noise_factor=0.005):
+        noise = np.random.randn(len(self.sample))
+        augmented_sample = self.sample + noise_factor * noise
+        return augmented_sample
+
+    def add_echo(self, delay=0.2, decay=0.5):
+        echo_sample = np.zeros_like(self.sample)
+        delay_samples = int(delay * self.sampling_rate)
+        for i in range(delay_samples, len(self.sample)):
+            echo_sample[i] = self.sample[i] + decay * self.sample[i - delay_samples]
+        return echo_sample
+
+    def apply_frequency_filter(self, lowcut=500.0, highcut=15000.0):
+        nyquist = 0.5 * self.sampling_rate
+        low = lowcut / nyquist
+        high = highcut / nyquist
+
+        # Ensure the frequencies are within the valid range
+        if not (0 < low < 1) or not (0 < high < 1):
+            raise ValueError("Digital filter critical frequencies must be 0 < Wn < 1")
+
+        b, a = butter(1, [low, high], btype="band")
+        filtered_sample = lfilter(b, a, self.sample)
+        return filtered_sample
+
+    def add_delay(self, delay=0.2):
+        delay_samples = int(delay * self.sampling_rate)
+        delayed_sample = np.zeros_like(self.sample)
+        for i in range(delay_samples, len(self.sample)):
+            delayed_sample[i] = self.sample[i - delay_samples]
+        return delayed_sample
+
+    def add_reverb(self, reverb_factor=0.5):
+        reverb_sample = np.convolve(
+            self.sample,
+            np.ones(int(self.sampling_rate * reverb_factor)) / self.sampling_rate,
+            mode="full",
+        )
+        return reverb_sample[: len(self.sample)]
