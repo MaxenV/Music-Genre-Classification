@@ -129,32 +129,32 @@ class AudioProcess:
         mfcc = librosa.feature.mfcc(y=sample, sr=sampling_rate, n_mfcc=13)
         return mfcc
 
-    def save_data(self, types=None, processed_folder=None):
+    def save_data(self):
         if not self.data:
             print("No data to save")
 
-        if not types:
-            types = self.data.keys()
-        if not processed_folder:
-            processed_folder = self.processed_folder
-
-        joined_types = str.join("_", types)
-
-        class_folder_path = os.path.join(processed_folder, self.class_name)
-        audio_folder_path = os.path.join(
-            class_folder_path, self.audio_name.replace(".", "_")
-        )
-        file_path = os.path.join(
-            audio_folder_path,
-            f"{joined_types}.json",
-        )
-
+        class_folder_path = os.path.join(self.processed_folder, self.class_name)
         os.makedirs(class_folder_path, exist_ok=True)
-        os.makedirs(audio_folder_path, exist_ok=True)
 
-        with open(file_path, "w") as file:
-            to_json = {key: self.data[key].tolist() for key in types}
-            dump(to_json, file)
+        for augKey in self.data.keys():
+            audio_folder_path = os.path.join(
+                class_folder_path, self.audio_name.replace(".", "_") + "_" + augKey
+            )
+            os.makedirs(audio_folder_path, exist_ok=True)
+
+            joined_types = str.join("_", self.data[augKey].keys())
+            file_path = os.path.join(
+                audio_folder_path,
+                f"{joined_types}.json",
+            )
+
+            with open(file_path, "w") as file:
+                # to_json = {key: self.data[key].tolist() for key in types}
+                to_json = {
+                    key: self.data[augKey][key].tolist()
+                    for key in self.data[augKey].keys()
+                }
+                dump(to_json, file)
 
     def add_orginal_data(self, types=None):
         if self.sample is None:
