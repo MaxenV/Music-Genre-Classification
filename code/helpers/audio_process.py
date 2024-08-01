@@ -116,8 +116,17 @@ class AudioProcess:
         if not sampling_rate:
             sampling_rate = self.sampling_rate
 
-        melspectrogram = librosa.feature.melspectrogram(y=sample, sr=sampling_rate)
+        melspectrogram = librosa.feature.melspectrogram(
+            y=self.standardize_sample_length(
+                sample=sample, sample_length=self.sample_length
+            ),
+            sr=sampling_rate,
+        )
         melspectrogram = librosa.power_to_db(melspectrogram, ref=np.max)
+
+        melspectrogram = (melspectrogram - np.mean(melspectrogram)) / np.std(
+            melspectrogram
+        )
         return melspectrogram
 
     def get_mfcc(self, sample=None, sampling_rate=None):
@@ -126,7 +135,14 @@ class AudioProcess:
         if not sampling_rate:
             sampling_rate = self.sampling_rate
 
-        mfcc = librosa.feature.mfcc(y=sample, sr=sampling_rate, n_mfcc=13)
+        mfcc = librosa.feature.mfcc(
+            y=self.standardize_sample_length(
+                sample=sample, sample_length=self.sample_length
+            ),
+            sr=sampling_rate,
+            n_mfcc=13,
+        )
+        mfcc = (mfcc - np.mean(mfcc)) / np.std(mfcc)
         return mfcc
 
     def save_data(self):
