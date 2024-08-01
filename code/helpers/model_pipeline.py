@@ -4,6 +4,7 @@ import numpy as np
 from keras.utils import to_categorical
 from keras.utils import to_categorical
 import matplotlib.pyplot as plt
+import json
 
 
 class DataGenerator(Sequence):
@@ -66,6 +67,12 @@ class DataGenerator(Sequence):
             },
             y[index_within_batch : index_within_batch + 1],
         )
+
+
+def load_json_data(file_path, data_types=["melSpectrogram", "mfcc"]):
+    with open(file_path, "r") as f:
+        data = json.load(f)
+    return {data_type: np.array(data[data_type]) for data_type in data_types}
 
 
 def plot_history(history, step=1):
