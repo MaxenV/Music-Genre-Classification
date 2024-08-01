@@ -3,6 +3,7 @@ from keras.utils import Sequence
 import numpy as np
 from keras.utils import to_categorical
 from keras.utils import to_categorical
+import matplotlib.pyplot as plt
 
 
 class DataGenerator(Sequence):
@@ -65,3 +66,30 @@ class DataGenerator(Sequence):
             },
             y[index_within_batch : index_within_batch + 1],
         )
+
+
+def plot_history(history, step=1):
+    epochs_tic = range(1, len(history.history["accuracy"]) + 1, step)
+    epochs = range(1, len(history.history["accuracy"]) + 1)
+    y_ticks = np.arange(0, 1.01, 0.05)
+
+    # Plot training & validation accuracy values
+    plt.plot(epochs, history.history["accuracy"])
+    plt.plot(epochs, history.history["val_accuracy"])
+    plt.title("Model accuracy")
+    plt.ylabel("Accuracy")
+    plt.xlabel("Epoch")
+    plt.xticks(epochs_tic)
+    plt.yticks(y_ticks)
+    plt.grid()
+    plt.legend(["Train", "Validation"], loc="upper left")
+    plt.show()
+
+    # Plot training & validation loss values
+    plt.plot(epochs, history.history["loss"])
+    plt.plot(epochs, history.history["val_loss"])
+    plt.title("Model loss")
+    plt.ylabel("Loss")
+    plt.xlabel("Epoch")
+    plt.legend(["Train", "Validation"], loc="upper left")
+    plt.show()
